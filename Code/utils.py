@@ -11,26 +11,29 @@ def get_features(img, method):
     gray_arr = np.asarray(gray)
 
     # Ratio hair feature
-    # img_black = np.zeros((128, 96), dtype = np.uint8)
+    img_white = np.ones((128, 96), dtype = np.uint8)
     count = 0
     for i in range(0,128):
         for j in range(0,96):
             if gray_arr[i][j] <= 51 :
-                # img_black[i][j] = 255
+                img_white[i][j] = 0
                 count += 1
     ratio_h = [count / (128*96)]
 
     # HOG features
-    hog_features, hog_image = hog(gray_arr, orientations=8, pixels_per_cell=(8, 8),
+    hog_features, hog_image = hog(img_white, orientations=8, pixels_per_cell=(8, 8),
                     cells_per_block=(2, 2), visualize = True)
+    orient_features = np.zeros((4))
+    for i in range(len(hog_features)):
+        orient_features[i%4] += hog_features[i]
 
     # Concatenate histograms features and HOG features
-    merged_features = np.concatenate((hog_features, ratio_h))
+    merged_features = np.concatenate((orient_features, ratio_h))
 
     if method == "Ratio hair":
         return ratio_h
     elif method == "HOG":
-        return hog_features
+        return orient_features
     else:
         return merged_features
     
@@ -45,7 +48,6 @@ def prediction(img, method):
     idx = []
 
     current_features = get_features(img, method)
-    print(len(current_features))
 
     if method == "Ratio hair":
         for path in glob.glob(f'{ratio_h_path}/*'):
@@ -55,14 +57,14 @@ def prediction(img, method):
             idx.append(path)
 
     elif method == "HOG":
-        for path in glob.glob(f'{ratio_h_path}/*'):
+        for path in glob.glob(f'{hog_path}/*'):
             hog_tmp = np.load(path)
             dist = np.linalg.norm(hog_tmp - current_features)
             val.append(dist)
             idx.append(path)
 
     else:
-        for path in glob.glob(f'{ratio_h_path}/*'):
+        for path in glob.glob(f'{all_features_path}/*'):
             all_features_tmp = np.load(path)
             dist = np.linalg.norm(all_features_tmp - current_features)
             val.append(dist)
